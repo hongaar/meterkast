@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# install: sudo update-rc.d meterkast defaults
+# remove: sudo update-rc.d -f meterkast remove
+
+# The following part carries out specific functions depending on arguments.
+case "$1" in
+        start)
+                sudo python /home/pi/code/app.py >>/home/pi/code/var/stdout.log 2>>/home/pi/code/var/stderr.log &
+                echo $! > /home/pi/code/var/meterkast.pid
+                ;;
+        stop)
+                sudo kill -s SIGINT `cat /home/pi/code/var/meterkast.pid` >>/home/pi/code/var/stdout.log 2>>/home/pi/code/var/stderr.log
+                ;;
+        *)
+                echo "Usage: /etc/init.d/meterkast {start|stop}"
+                exit 1
+                ;;
+esac
+
+exit 0

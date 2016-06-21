@@ -1,0 +1,4 @@
+lib/
+*.pyc
+rrd/*.rrd
+var/*
