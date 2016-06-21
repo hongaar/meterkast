@@ -118,11 +118,15 @@ class Joystick:
                 print("[JOYSTICK] Could not terminate timer")
 
     def event_loop(self):
+        wait_for_idle = False
         while True:
             command = self.status()
 
-            if command != self.IDLE:
+            if command != self.IDLE and wait_for_idle == False:
                 self.event_callback(command)
+                wait_for_idle = True
+            elif command == self.IDLE:
+                wait_for_idle = False
 
             time.sleep(1.0 / 30)
 

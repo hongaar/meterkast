@@ -16,7 +16,7 @@ debug = False
 
 _data = data.Data()
 
-_matrix = matrix.Matrix()
+_matrix = matrix.Matrix(_data)
 _pir = pir.PIR()
 _rgb = rgb.RGB()
 _oled = oled.OLED()
@@ -24,7 +24,7 @@ _joystick = joystick.Joystick()
 
 _p1 = p1.P1(debug)
 _reader = timedReader.TimedReader(_p1, debug)
-_writer = writer.Writer()
+_writer = writer.Writer(_data)
 
 # SIGINT handler
 ########################################################################################################################
@@ -43,16 +43,32 @@ signal.signal(signal.SIGINT, signal_handler)
 
 class Controller:
 
-    # Constants
+    # State constants
     STATE_AWAKE = 1
     STATE_HIBERNATION = 0
 
+    # Mode constants
     MODE_ELECTRICITY = 0
     MODE_GAS = 1
-
     MODES = {
         MODE_ELECTRICITY: 'Electriciteit',
         MODE_GAS: 'Gas'
+    }
+
+    # Time constants
+    TIME_NOW = 0
+    TIME_HOUR = 1
+    TIME_DAY = 2
+    TIME_WEEK = 3
+    TIME_MONTH = 4
+    TIME_YEAR = 5
+    TIMES = {
+        TIME_NOW: 'now',
+        TIME_HOUR: 'hour',
+        TIME_DAY: 'day',
+        TIME_WEEK: 'week',
+        TIME_MONTH: 'month',
+        TIME_YEAR: 'year'
     }
 
     RGB_BRIGHTNESS_AWAKE = 50  # 0 ... 255
@@ -68,6 +84,7 @@ class Controller:
 
     state = None
     mode = MODE_ELECTRICITY
+    time = TIME_NOW
 
     def __init__(self):
         self.p1 = _p1
@@ -178,17 +195,25 @@ class Controller:
             self.p1_manual()
             return
 
+        if command == self.joystick.RIGHT:
+            self.log('Got RIGHT input')
+            self.mode += 1
+            if self.mode > 1: self.mode = 0
+
         if command == self.joystick.LEFT:
             self.log('Got LEFT input')
-            self.matrix.reset_graph()
             self.mode -= 1
             if self.mode < 0: self.mode = 1
 
-        if command == self.joystick.RIGHT:
-            self.log('Got RIGHT input')
-            self.matrix.reset_graph()
-            self.mode += 1
-            if self.mode > 1: self.mode = 0
+        if command == self.joystick.BOTTOM:
+            self.log('Got DOWN input')
+            self.time += 1
+            if self.time > 5: self.time = 0
+
+        if command == self.joystick.TOP:
+            self.log('Got UP input')
+            self.time -= 1
+            if self.time < 0: self.time = 5
 
         self.display()
 
@@ -217,6 +242,16 @@ class Controller:
         self.display()
 
     def parse_data(self, p1_data):
+        self.data.reset([
+            'cons_w',
+            'cons_w_rel',
+            'cons_cnt',
+            'prod_w',
+            'prod_w_rel',
+            'prod_cnt',
+            'gas_cnt'
+        ])
+
         if self.p1.ELECTRICITY_CURRENT_WITHDRAWAL in p1_data:
             self.data.set('cons_w', p1_data[self.p1.ELECTRICITY_CURRENT_WITHDRAWAL] * 1000)
             self.data.set('cons_w_rel', (self.data.get('cons_w') - self.CONS_WATT_MIN) / (self.CONS_WATT_MAX - self.CONS_WATT_MIN))
@@ -234,12 +269,11 @@ class Controller:
         if self.p1.GAS_CUMULATIVE in p1_data:
             self.data.set('gas_cnt', p1_data[self.p1.GAS_CUMULATIVE])
 
-        self.log('P1 parsed data: ' + str(self.data.all()))
+        self.log('P1 parsed data: ' + str(p1_data))
 
     def write_data(self):
-        if self.data.get('cons_cnt') > 0:
-            self.log('Writing data')
-            self.writer.write(self.data.get('cons_cnt'), self.data.get('prod_cnt'), self.data.get('gas_cnt'))
+        self.log('Writing data')
+        self.writer.write(self.data.get('cons_cnt'), self.data.get('prod_cnt'), self.data.get('gas_cnt'))
 
     # Update displays
 
@@ -258,14 +292,21 @@ class Controller:
     def display(self):
         if self.is_awake():
             self.matrix.graph()
-            self.oled.top_text(self.MODES[self.mode])
-            self.oled.sub_text("")
+            self.oled.top_text(self.MODES[self.mode], False)
 
             if self.mode == self.MODE_ELECTRICITY:
-                self.oled.main_text(str(self.data.get('cons_w') - self.data.get('prod_w')) + " W")
+                if self.time == self.TIME_NOW:
+                    self.oled.main_text(str(self.data.get('cons_w') - self.data.get('prod_w')) + " W", False)
+                    self.oled.sub_text(self.TIMES[self.time], False)
+                else:
+                    self.oled.main_text(str(self.data.get('cons_avg_' + self.TIMES[self.time])) + " kWh", False)
+                    self.oled.sub_text('last ' + self.TIMES[self.time], False)
 
             elif self.mode == self.MODE_GAS:
-                self.oled.main_text(str(self.data.get('gas_cnt')) + " m3")
+                self.oled.main_text(str(self.data.get('gas_cnt')) + " m3", False)
+                self.oled.sub_text('meterstand', False)
+
+            self.oled.build_text()
 
 
 # Create controller

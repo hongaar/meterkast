@@ -57,23 +57,27 @@ class OLED:
         self.disp.image(image)
         self.disp.display()
 
-    def top_text(self, text):
+    def top_text(self, text, build=True):
         self.text_top = text
-        self.build_text()
+        if build:
+            self.build_text()
 
-    def main_text(self, text):
+    def main_text(self, text, build=True):
         self.text_main = text
-        self.build_text()
+        if build:
+            self.build_text()
 
-    def sub_text(self, text):
+    def sub_text(self, text, build=True):
         self.text_sub = text
-        self.build_text()
+        if build:
+            self.build_text()
 
-    def full_text(self, top_text, main_text, sub_text):
+    def full_text(self, top_text, main_text, sub_text, build=True):
         self.text_top = top_text
         self.text_main = main_text
         self.text_sub = sub_text
-        self.build_text()
+        if build:
+            self.build_text()
 
     def build_text(self):
         # Create blank image for drawing.
