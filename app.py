@@ -229,7 +229,7 @@ class Controller:
         self.log('P1 probing started')
 
         if self.is_awake():
-            self.oled.sub_text("Meten is weten")
+            self.oled.main_text("meten=weten")
 
         self.rgb.color('pink')
 
@@ -278,16 +278,12 @@ class Controller:
     # Update displays
 
     def tick(self):
-        if self.mode == self.MODE_ELECTRICITY:
-            if self.data.get('cons_w') > 0:
-                self.rgb.rgb(self.data.get('cons_w_rel') * 255, 255 - (self.data.get('cons_w_rel') * 255), 0)
-                self.matrix.update_graph(self.data.get('cons_w_rel'))
-            else:
-                self.rgb.rgb(0, self.data.get('prod_w_rel') * 255, 255 - (self.data.get('prod_w_rel') * 255))
-                self.matrix.update_graph(self.data.get('prod_w_rel'))
-
-        elif self.mode == self.MODE_GAS:
-            self.rgb.color('yellow')
+        if self.data.get('cons_w') > 0:
+            self.rgb.rgb(self.data.get('cons_w_rel') * 255, 255 - (self.data.get('cons_w_rel') * 255), 0)
+            self.matrix.update_graph(self.data.get('cons_w_rel'))
+        else:
+            self.rgb.rgb(0, self.data.get('prod_w_rel') * 255, 255 - (self.data.get('prod_w_rel') * 255))
+            self.matrix.update_graph(self.data.get('prod_w_rel'))
 
     def display(self):
         if self.is_awake():
@@ -303,8 +299,12 @@ class Controller:
                     self.oled.sub_text('last ' + self.TIMES[self.time], False)
 
             elif self.mode == self.MODE_GAS:
-                self.oled.main_text(str(self.data.get('gas_cnt')) + " m3", False)
-                self.oled.sub_text('meterstand', False)
+                if self.time == self.TIME_NOW:
+                    self.oled.main_text('n/a', False)
+                    self.oled.sub_text(self.TIMES[self.time], False)
+                else:
+                    self.oled.main_text(str(self.data.get('gas_avg_' + self.TIMES[self.time])) + " m3", False)
+                    self.oled.sub_text('last ' + self.TIMES[self.time], False)
 
             self.oled.build_text()
 

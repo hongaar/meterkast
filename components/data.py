@@ -19,7 +19,12 @@ class Data:
             'prod_w',
             'prod_w_rel',
             'prod_cnt',
-            'gas_cnt'
+            'gas_cnt',
+            'gas_avg_hour',
+            'gas_avg_day',
+            'gas_avg_week',
+            'gas_avg_month',
+            'gas_avg_year'
         ]
 
         self.reset()

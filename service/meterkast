@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# The following part carries out specific functions depending on arguments.
+case "$1" in
+    start)
+        echo "Starting meterkast..."
+        sudo python /home/pi/code/app.py >>/home/pi/code/var/meterkast.log 2>&1 &
+        echo $! > /home/pi/code/var/meterkast.pid
+        ;;
+    stop)
+        echo "Stopping meterkast..."
+        sudo kill -s SIGINT `cat /home/pi/code/var/meterkast.pid` >>/home/pi/code/var/meterkast.log 2>&1
+        ;;
+    restart)
+        /etc/init.d/meterkast stop
+        /etc/init.d/meterkast start
+        ;;
+    *)
+        echo "Usage: /etc/init.d/meterkast {start|stop}"
+        exit 1
+        ;;
+esac
+
+exit 0

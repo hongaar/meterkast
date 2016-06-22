@@ -12,9 +12,9 @@ class Writer:
     ]
 
     def __init__(self, data):
-        self.electricity_db = 'rrd/electricity.rrd'
-        self.gas_db = 'rrd/gas.rrd'
-        self.www = 'www/'
+        self.electricity_db = '/home/pi/code/rrd/electricity.rrd'
+        self.gas_db = '/home/pi/code/rrd/gas.rrd'
+        self.www = '/home/pi/code/www/'
         self.data = data
 
     def write(self, cnt_consumption, cnt_production, cnt_gas):
@@ -71,17 +71,23 @@ class Writer:
         for i, val in enumerate(self.ranges):
             path = self.www + 'gas-' + str(i) + '-' + val['range'] + '.png'
 
-            # To go from cm3/s to m3, multiply by 0.0036
+            # To go from cm3 to m3, divide by 1000000
 
-            rrdtool.graph(path,
-              '--imgformat', 'PNG',
-              '--width', '1024',
-              '--height', '320',
-              '--start', "-1%s" % val['range'],
-              '--end', "now",
-              '--vertical-label', 'm3',
-              '--title', 'Gas (%s)' % val['title'],
-              '--lower-limit', '0',
-              'DEF:gas_trend=%s:gas_trend:AVERAGE' % self.gas_db,
-              'CDEF:corr_gas=gas_trend,0.0036,*',
-              'LINE1:corr_gas#ff0000:Afname')
+            result = rrdtool.graph(path,
+                '--imgformat', 'PNG',
+                '--width', '1024',
+                '--height', '320',
+                '--start', "-1%s" % val['range'],
+                '--end', "now",
+                '--vertical-label', 'm3',
+                '--title', 'Gas (%s)' % val['title'],
+                '--lower-limit', '0',
+                'DEF:gas_trend=%s:gas_trend:AVERAGE' % self.gas_db,
+                'CDEF:corr_gas=gas_trend,0.0036,*',
+                'LINE1:corr_gas#ff0000:Afname',
+                'CDEF:corr_total=gas_trend,1000000,/',
+                'VDEF:gas_total=corr_total,TOTAL',
+                'GPRINT:gas_total:Total\: %6.2lf m3',
+                'PRINT:gas_total:%6.2lf')
+
+            self.data.set('gas_avg_' + val['range'], float(result[2][0]))

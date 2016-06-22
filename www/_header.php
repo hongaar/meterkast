@@ -33,6 +33,9 @@
                         <li><a href="index.php">Home</a></li>
                         <li><a href="log.php">Log</a></li>
                     </ul>
+                    <form action="restart.php" class="navbar-form navbar-right">
+                        <button type="submit" class="btn btn-warning">Restart</button>
+                    </form>
                 </div>
             </div>
         </nav>

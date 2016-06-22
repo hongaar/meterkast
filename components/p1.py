@@ -1,4 +1,5 @@
 import sys
+import datetime
 import serial
 import random
 import time
@@ -62,7 +63,14 @@ class P1:
         self.ser = ser
 
     def probe(self):
-        return self.read_serial_port()
+        # read serial port until we get all the data we need
+        while True:
+            data = self.read_serial_port()
+
+            if len(data) >= len(self.TELEGRAM_MAP):
+                break
+
+        return data
 
     def read_serial_port(self):
 
@@ -93,6 +101,10 @@ class P1:
             p1_str = str(p1_raw)
             p1_line = p1_str.strip()
 
+            # raw log
+            with open("/home/pi/code/var/p1.log", "a") as log:
+                log.write(datetime.datetime.utcnow().isoformat() + ": " + p1_line + "\n")
+
             if p1_line[:1] == '!':
                 break
 
@@ -109,7 +121,8 @@ class P1:
 
                 data[p1_key] = p1_value
             except ValueError:
-                pass
+                # incomplete telegram
+                return {}
 
             time.sleep(.01)
 

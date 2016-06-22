@@ -8,7 +8,7 @@
 
             <?php
 
-            $log = file('/home/pi/code/var/stdout.log');
+            $log = file('/home/pi/code/var/meterkast.log');
             $log = array_reverse($log);
 
             foreach($log as $line) :
