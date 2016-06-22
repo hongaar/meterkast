@@ -72,6 +72,11 @@ class P1:
 
         return data
 
+    def probe_log(self, message):
+        # raw log
+        with open("/home/pi/code/var/p1.log", "a") as log:
+            log.write(datetime.datetime.utcnow().isoformat() + ": " + message + "\n")
+
     def read_serial_port(self):
 
         if self.debug:
@@ -101,11 +106,10 @@ class P1:
             p1_str = str(p1_raw)
             p1_line = p1_str.strip()
 
-            # raw log
-            with open("/home/pi/code/var/p1.log", "a") as log:
-                log.write(datetime.datetime.utcnow().isoformat() + ": " + p1_line + "\n")
+            self.probe_log(p1_line)
 
             if p1_line[:1] == '!':
+                self.probe_log("^^^ end")
                 break
 
             p1_line = p1_line[p1_line.find(":") + 1:]
@@ -113,6 +117,7 @@ class P1:
             p1_line = p1_line[p1_line.find("(") + 1:]
 
             if not p1_key in self.TELEGRAM_MAP:
+                self.probe_log("^^^ skip")
                 continue
 
             try:
@@ -120,11 +125,11 @@ class P1:
                 p1_value = float(p1_value)
 
                 data[p1_key] = p1_value
+                self.probe_log("^^^ save")
             except ValueError:
-                # incomplete telegram
-                return {}
-
-            time.sleep(.01)
+                self.probe_log("^^^ incomplete")
+                data = {}
+                break
 
         # Close port and show status
         try:
