@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 
-class PIR:
 
+class PIR:
     PIR_PIN = 21
 
     callback = None
@@ -17,7 +17,8 @@ class PIR:
         self.callback = callback
 
     def event_start(self):
-        GPIO.add_event_detect(self.PIR_PIN, GPIO.BOTH, callback=self.event_callback, bouncetime=200)
+        GPIO.add_event_detect(self.PIR_PIN, GPIO.BOTH, callback=self.event_callback,
+                              bouncetime=200)
 
     def event_callback(self, channel):
         status = self.probe()

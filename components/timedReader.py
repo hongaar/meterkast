@@ -1,7 +1,7 @@
 from helpers.timer import TaskThread
 
-class TimedReader(TaskThread):
 
+class TimedReader(TaskThread):
     DEFAULT_INTERVAL = 1 * 60
     HIBERNATION_INTERVAL = 5 * 60
     DEBUG_INTERVAL = 5
@@ -44,5 +44,3 @@ class TimedReader(TaskThread):
         self.probing_callback()
         data = self.p1.probe()
         self.probed_callback(data)
-
-

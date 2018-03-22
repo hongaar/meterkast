@@ -1,12 +1,13 @@
 import threading
 
+
 class RepeatedTimer(object):
     def __init__(self, interval, function, *args, **kwargs):
-        self._timer     = None
-        self.interval   = interval
-        self.function   = function
-        self.args       = args
-        self.kwargs     = kwargs
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
         self.is_running = False
         self.start()
 
@@ -24,6 +25,7 @@ class RepeatedTimer(object):
     def stop(self):
         self._timer.cancel()
         self.is_running = False
+
 
 class TaskThread(threading.Thread):
     """Thread that executes a task every N seconds"""
@@ -43,7 +45,8 @@ class TaskThread(threading.Thread):
 
     def run(self):
         while 1:
-            if self._finished.isSet(): return
+            if self._finished.isSet():
+                return
 
             self.task()
 

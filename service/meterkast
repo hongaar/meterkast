@@ -16,7 +16,7 @@ case "$1" in
         /etc/init.d/meterkast start
         ;;
     *)
-        echo "Usage: /etc/init.d/meterkast {start|stop}"
+        echo "Usage: /etc/init.d/meterkast {start|stop|restart}"
         exit 1
         ;;
 esac

@@ -26,7 +26,7 @@ class Writer:
         cnt_gas = int(cnt_gas * 1000)
 
         # multiply by 1000 to get mWh for DERIVE data-sets
-        if cnt_consumption > 0:
+        if cnt_consumption > 0 or cnt_production > 0:
             update_str = 'N:%i:%i:%i:%i' % (cnt_consumption, cnt_consumption * 1000, cnt_production, cnt_production * 1000)
             rrdtool.update(self.electricity_db, update_str)
         self.update_electricity_graph()
@@ -60,10 +60,16 @@ class Writer:
                 'CDEF:corr_prod=prod_trend,3.6,*',
                 'LINE1:corr_cons#ff0000:Afname',
                 'LINE1:corr_prod#00ff00:Levering',
-                'CDEF:corr_total=cons_trend,1000000,/',
-                'VDEF:cons_total=corr_total,TOTAL',
-                'GPRINT:cons_total:Total\: %6.2lf kWh',
-                'PRINT:cons_total:%6.2lf')
+                'CDEF:corr_cons_total=cons_trend,1000000,/',
+                'CDEF:corr_prod_total=prod_trend,1000000,/',
+                'CDEF:corr_total=corr_cons_total,corr_prod_total,-1,*,ADDNAN',
+                'VDEF:cons_total=corr_cons_total,TOTAL',
+                'VDEF:prod_total=corr_prod_total,TOTAL',
+                'VDEF:total=corr_total,TOTAL',
+                'GPRINT:cons_total:Consumption\: %6.2lf kWh',
+                'GPRINT:prod_total:Production\: %6.2lf kWh',
+                'GPRINT:total:Total\: %6.2lf kWh',
+                'PRINT:total:%6.2lf')
 
             self.data.set('cons_avg_' + val['range'], float(result[2][0]))
 

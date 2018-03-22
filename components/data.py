@@ -2,6 +2,7 @@
 
 import redis
 
+
 class Data:
 
     def __init__(self):
@@ -38,7 +39,6 @@ class Data:
             for key in keys:
                 self.set(key, 0)
 
-
     def set(self, key, value):
         self._redis.set(key, str(value))
 
@@ -58,6 +58,3 @@ class Data:
             _dict[key] = self.get(key)
 
         return _dict
-
-
-

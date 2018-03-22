@@ -2,3 +2,4 @@ lib/
 *.pyc
 rrd/*.rrd
 var/*
+.idea/

@@ -4,17 +4,17 @@ import time
 import RPi.GPIO as GPIO
 from multiprocessing import Process
 
-class Joystick:
 
+class Joystick:
     CHANNEL_X = 1
-    CHANNEL_Y = 0 # + button channel
+    CHANNEL_Y = 0  # + button channel
 
     AVG = 256 * 2
     MIN = 256
     MAX = 256 * 3
-    TRESHOLD_BUTTON = 256 * 4
+    THRESHOLD_BUTTON = 256 * 4
 
-    TRESHOLD = 150
+    THRESHOLD = 150
 
     IDLE = 0
     LEFT = 1
@@ -86,19 +86,19 @@ class Joystick:
         x = self.readadc(self.CHANNEL_X)
         y = click = self.readadc(self.CHANNEL_Y)
 
-        if click > (self.TRESHOLD_BUTTON - self.TRESHOLD):
+        if click > (self.THRESHOLD_BUTTON - self.THRESHOLD):
             return self.CLICK
 
-        if x < (self.MIN + self.TRESHOLD):
+        if x < (self.MIN + self.THRESHOLD):
             return self.LEFT
 
-        if x > (self.MAX - self.TRESHOLD):
+        if x > (self.MAX - self.THRESHOLD):
             return self.RIGHT
 
-        if y < (self.MIN + self.TRESHOLD):
+        if y < (self.MIN + self.THRESHOLD):
             return self.TOP
 
-        if y > (self.MAX - self.TRESHOLD):
+        if y > (self.MAX - self.THRESHOLD):
             return self.BOTTOM
 
         return self.IDLE
@@ -132,4 +132,3 @@ class Joystick:
 
     def event_callback(self, command):
         self.callback(command)
-

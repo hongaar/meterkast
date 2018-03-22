@@ -1,0 +1,15 @@
+/home/pi/code/var/meterkast.log {
+    daily
+    copytruncate
+    create 0644 root root
+    rotate 7
+    compress
+}
+
+/home/pi/code/var/p1.log {
+    daily
+    copytruncate
+    create 0644 root root
+    rotate 7
+    compress
+}

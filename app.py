@@ -7,10 +7,10 @@ import time
 
 import RPi.GPIO as GPIO
 
-from components import rgb, pir, matrix, oled, p1, joystick, timedReader, writer, data
+from components import rebooter, rgb, pir, matrix, oled, continuousP1, joystick, writer, data
 
 # Setup classes
-########################################################################################################################
+###################################################################################################
 
 debug = False
 
@@ -22,27 +22,35 @@ _rgb = rgb.RGB()
 _oled = oled.OLED()
 _joystick = joystick.Joystick()
 
-_p1 = p1.P1(debug)
-_reader = timedReader.TimedReader(_p1, debug)
+_p1 = continuousP1.P1()
 _writer = writer.Writer(_data)
 
+
 # SIGINT handler
-########################################################################################################################
+###################################################################################################
 
 def signal_handler(signal, frame):
     global main
 
     main.shutdown()
-
     sys.exit(0)
+
 
 signal.signal(signal.SIGINT, signal_handler)
 
+# Loop vars
+###################################################################################################
+
+TICK_SECONDS = 1
+TICK_RESTART_AFTER = (60 * 60 * 24) / TICK_SECONDS
+
+tick_counter = 0
+
+
 # The controller
-########################################################################################################################
+###################################################################################################
 
 class Controller:
-
     # State constants
     STATE_AWAKE = 1
     STATE_HIBERNATION = 0
@@ -93,7 +101,6 @@ class Controller:
         self.matrix = _matrix
         self.pir = _pir
         self.oled = _oled
-        self.reader = _reader
         self.writer = _writer
         self.data = _data
 
@@ -111,9 +118,8 @@ class Controller:
         self.joystick.event_setup(self.joystick_event)
         self.joystick.event_start()
 
-        self.reader.event_probing_setup(self.p1_probing)
-        self.reader.event_probed_setup(self.p1_probed)
-        self.reader.event_start()
+        self.p1.event_setup(self.p1_probed)
+        self.p1.event_start()
 
         self.log('Bootstrap success')
 
@@ -123,7 +129,7 @@ class Controller:
 
         time.sleep(.1)
 
-        self.reader.event_stop()
+        self.p1.event_stop()
 
         self.rgb.off()
         self.rgb.cleanup()
@@ -138,10 +144,9 @@ class Controller:
 
     @staticmethod
     def log(message):
-        print (datetime.datetime.utcnow().isoformat() + ": " + str(message))
+        print(datetime.datetime.utcnow().isoformat() + ": " + str(message))
 
     # Hibernation
-
     def hibernate(self):
         self.log('Hibernating')
 
@@ -154,7 +159,7 @@ class Controller:
 
         self.matrix.clear()
 
-        self.reader.hibernate()
+        self.p1.hibernate()
 
     def wakeup(self):
         self.log('Waking up')
@@ -166,7 +171,7 @@ class Controller:
 
         self.matrix.brightness(self.MATRIX_BRIGHTNESS)
 
-        self.reader.wakeup()
+        self.p1.wakeup()
 
         self.display()
 
@@ -174,7 +179,6 @@ class Controller:
         return self.state == self.STATE_AWAKE
 
     # Movement detection
-
     def pir_event(self, status):
         if not self.is_awake() and status == 1:
             self.log('PIR status changed to high')
@@ -185,54 +189,42 @@ class Controller:
             self.hibernate()
 
     # Get command from joystick
-
     def joystick_event(self, command):
         if not self.is_awake():
             self.wakeup()
 
-        if command == _joystick.CLICK:
+        if command == self.joystick.CLICK:
             self.log('Got CLICK input')
-            self.p1_manual()
+            rebooter.restart()
             return
 
         if command == self.joystick.RIGHT:
             self.log('Got RIGHT input')
             self.mode += 1
-            if self.mode > 1: self.mode = 0
+            if self.mode > 1:
+                self.mode = 0
 
         if command == self.joystick.LEFT:
             self.log('Got LEFT input')
             self.mode -= 1
-            if self.mode < 0: self.mode = 1
+            if self.mode < 0:
+                self.mode = 1
 
         if command == self.joystick.BOTTOM:
             self.log('Got DOWN input')
             self.time += 1
-            if self.time > 5: self.time = 0
+            if self.time > 5:
+                self.time = 0
 
         if command == self.joystick.TOP:
             self.log('Got UP input')
             self.time -= 1
-            if self.time < 0: self.time = 5
+            if self.time < 0:
+                self.time = 5
 
         self.display()
 
     # Electricity usage
-
-    def p1_manual(self):
-        self.log('P1 manual probe triggered')
-
-        self.p1_probing()
-        self.p1_probed(self.p1.probe())
-
-    def p1_probing(self):
-        self.log('P1 probing started')
-
-        if self.is_awake():
-            self.oled.main_text("meten=weten")
-
-        self.rgb.color('pink')
-
     def p1_probed(self, p1_data):
         self.log('P1 probing success')
 
@@ -254,17 +246,22 @@ class Controller:
 
         if self.p1.ELECTRICITY_CURRENT_WITHDRAWAL in p1_data:
             self.data.set('cons_w', p1_data[self.p1.ELECTRICITY_CURRENT_WITHDRAWAL] * 1000)
-            self.data.set('cons_w_rel', (self.data.get('cons_w') - self.CONS_WATT_MIN) / (self.CONS_WATT_MAX - self.CONS_WATT_MIN))
+            self.data.set('cons_w_rel', (self.data.get('cons_w') - self.CONS_WATT_MIN) / (
+                    self.CONS_WATT_MAX - self.CONS_WATT_MIN))
 
         if self.p1.ELECTRICITY_CURRENT_SUPPLY in p1_data:
             self.data.set('prod_w', p1_data[self.p1.ELECTRICITY_CURRENT_SUPPLY] * 1000)
-            self.data.set('prod_w_rel', (self.data.get('prod_w') - self.PROD_WATT_MIN) / (self.PROD_WATT_MAX - self.PROD_WATT_MIN))
+            self.data.set('prod_w_rel', (self.data.get('prod_w') - self.PROD_WATT_MIN) / (
+                    self.PROD_WATT_MAX - self.PROD_WATT_MIN))
 
         if self.p1.ELECTRICITY_1_WITHDRAWAL_CUMULATIVE in p1_data and self.p1.ELECTRICITY_2_WITHDRAWAL_CUMULATIVE in p1_data:
-            self.data.set('cons_cnt', p1_data[self.p1.ELECTRICITY_1_WITHDRAWAL_CUMULATIVE] + p1_data[self.p1.ELECTRICITY_2_WITHDRAWAL_CUMULATIVE])
+            self.data.set('cons_cnt',
+                          p1_data[self.p1.ELECTRICITY_1_WITHDRAWAL_CUMULATIVE] + p1_data[
+                              self.p1.ELECTRICITY_2_WITHDRAWAL_CUMULATIVE])
 
         if self.p1.ELECTRICITY_1_SUPPLY_CUMULATIVE in p1_data and self.p1.ELECTRICITY_2_SUPPLY_CUMULATIVE in p1_data:
-            self.data.set('prod_cnt', p1_data[self.p1.ELECTRICITY_1_SUPPLY_CUMULATIVE] + p1_data[self.p1.ELECTRICITY_2_SUPPLY_CUMULATIVE])
+            self.data.set('prod_cnt', p1_data[self.p1.ELECTRICITY_1_SUPPLY_CUMULATIVE] + p1_data[
+                self.p1.ELECTRICITY_2_SUPPLY_CUMULATIVE])
 
         if self.p1.GAS_CUMULATIVE in p1_data:
             self.data.set('gas_cnt', p1_data[self.p1.GAS_CUMULATIVE])
@@ -273,16 +270,18 @@ class Controller:
 
     def write_data(self):
         self.log('Writing data')
-        self.writer.write(self.data.get('cons_cnt'), self.data.get('prod_cnt'), self.data.get('gas_cnt'))
+        self.writer.write(self.data.get('cons_cnt'), self.data.get('prod_cnt'),
+                          self.data.get('gas_cnt'))
 
     # Update displays
-
     def tick(self):
         if self.data.get('cons_w') > 0:
-            self.rgb.rgb(self.data.get('cons_w_rel') * 255, 255 - (self.data.get('cons_w_rel') * 255), 0)
+            self.rgb.rgb(self.data.get('cons_w_rel') * 255,
+                         255 - (self.data.get('cons_w_rel') * 255), 0)
             self.matrix.update_graph(self.data.get('cons_w_rel'))
         else:
-            self.rgb.rgb(0, self.data.get('prod_w_rel') * 255, 255 - (self.data.get('prod_w_rel') * 255))
+            self.rgb.rgb(0, self.data.get('prod_w_rel') * 255,
+                         255 - (self.data.get('prod_w_rel') * 255))
             self.matrix.update_graph(self.data.get('prod_w_rel'))
 
     def display(self):
@@ -292,10 +291,12 @@ class Controller:
 
             if self.mode == self.MODE_ELECTRICITY:
                 if self.time == self.TIME_NOW:
-                    self.oled.main_text(str(self.data.get('cons_w') - self.data.get('prod_w')) + " W", False)
+                    self.oled.main_text(
+                        str(self.data.get('cons_w') - self.data.get('prod_w')) + " W", False)
                     self.oled.sub_text(self.TIMES[self.time], False)
                 else:
-                    self.oled.main_text(str(self.data.get('cons_avg_' + self.TIMES[self.time])) + " kWh", False)
+                    self.oled.main_text(
+                        str(self.data.get('cons_avg_' + self.TIMES[self.time])) + " kWh", False)
                     self.oled.sub_text('last ' + self.TIMES[self.time], False)
 
             elif self.mode == self.MODE_GAS:
@@ -303,7 +304,8 @@ class Controller:
                     self.oled.main_text('n/a', False)
                     self.oled.sub_text(self.TIMES[self.time], False)
                 else:
-                    self.oled.main_text(str(self.data.get('gas_avg_' + self.TIMES[self.time])) + " m3", False)
+                    self.oled.main_text(
+                        str(self.data.get('gas_avg_' + self.TIMES[self.time])) + " m3", False)
                     self.oled.sub_text('last ' + self.TIMES[self.time], False)
 
             self.oled.build_text()
@@ -316,4 +318,8 @@ main.bootstrap()
 
 # Start loop
 while True:
-    time.sleep(1)
+    tick_counter = tick_counter + 1
+    if tick_counter > TICK_RESTART_AFTER:
+        rebooter.restart()
+
+    time.sleep(TICK_SECONDS)
